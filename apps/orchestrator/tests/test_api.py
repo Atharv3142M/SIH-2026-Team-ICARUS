@@ -14,3 +14,10 @@ def test_missing_video():
     client = TestClient(app)
     res = client.post("/jobs", json={"videoPath": "C:/nope/missing.mp4"})
     assert res.status_code == 400
+
+
+def test_list_jobs():
+    client = TestClient(app)
+    res = client.get("/jobs")
+    assert res.status_code == 200
+    assert isinstance(res.json(), list)

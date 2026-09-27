@@ -19,7 +19,8 @@ scripts\nodeodm-up.ps1
 .\.venv\Scripts\python.exe -m pytest apps\pipeline apps\orchestrator
 cd apps\desktop
 npm install
-npm run dev:electron
+npm run dev
+# or: npm run dev:electron
 ```
 
 Orchestrator: `http://127.0.0.1:8765`  
@@ -44,9 +45,13 @@ Submit an existing still folder to NodeODM:
 ## Job API
 
 - `POST /jobs` `{ "videoPath", "srtPath?", "preset?", "generateMasks?" }`
+- `GET /jobs` list
 - `GET /jobs/{id}`
-- `WS /jobs/{id}/events` stages: `extracting | reconstructing | converting | ready | error`
-- `GET /jobs/{id}/assets/model.glb`
+- `POST /jobs/{id}/cancel`
+- `DELETE /jobs/{id}`
+- `WS /jobs/{id}/events`
+- `GET /jobs/{id}/assets/{model.glb|model.laz|orthophoto.tif|all.zip}`
+- `GET /system/status`
 
 ## Known limits
 

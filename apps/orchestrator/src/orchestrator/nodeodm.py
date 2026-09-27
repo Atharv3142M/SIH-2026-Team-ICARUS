@@ -105,8 +105,12 @@ class NodeODMClient:
         *,
         poll_s: float = 1.0,
         progress: ProgressCb | None = None,
+        should_stop: Callable[[], bool] | None = None,
     ) -> TaskInfo:
         while True:
+            if should_stop and should_stop():
+                self.cancel_task(uuid)
+                raise NodeODMError("Job canceled")
             info = self.task_info(uuid)
             if progress:
                 pct = 40 + min(50.0, info.progress * 0.5)
@@ -119,6 +123,13 @@ class NodeODMClient:
             if info.failed or info.canceled:
                 raise NodeODMError(info.message or f"NodeODM task {uuid} failed ({info.status_code})")
             time.sleep(poll_s)
+
+    def cancel_task(self, uuid: str) -> None:
+        with httpx.Client(timeout=self.timeout) as client:
+            client.post(self._url("task/cancel"), data={"uuid": uuid})
+
+    def ping(self) -> dict[str, Any]:
+        return self.info()
 
     def download_asset(self, uuid: str, asset: str, dest: Path) -> Path:
         dest.parent.mkdir(parents=True, exist_ok=True)

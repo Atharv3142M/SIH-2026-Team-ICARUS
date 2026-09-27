@@ -18,6 +18,8 @@ apps/desktop/dist/
 apps/desktop/release/
 apps/desktop/out/
 
+apps/pipeline/tests/fixtures/*.mp4
+
 # Runtime / jobs
 .jobs/
 *.glb
@@ -41,3 +43,8 @@ Thumbs.db
 Desktop.ini
 .DS_Store
 /.cursor
+Docs/ACTION_PLAN_START_NOW.md
+Docs/COPY_PASTE_UI_BUILD_PROMPT.md
+Docs/IMPLEMENTATION_ROADMAP_3DAYS.md
+Docs/JARVIS_REPO_ANALYSIS.md
+Docs/WEBODM_INSPIRED_UI_SPEC.md

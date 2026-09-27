@@ -24,6 +24,9 @@ _GPS_PAREN = re.compile(
     r"GPS\s*\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*(?:,\s*(-?\d+(?:\.\d+)?))?\s*\)",
     re.I,
 )
+_CSV_LLA = re.compile(
+    r"^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)"
+)
 
 
 def _to_seconds(h: str | None, m: str, s: str, ms: str) -> float:
@@ -58,6 +61,14 @@ def parse_srt(path: str | Path) -> list[TelemetrySample]:
             lon = float(lon_m.group(1))
         if alt_m:
             alt = float(alt_m.group(1))
+        if lat is None or lon is None:
+            for line in block.splitlines():
+                csv = _CSV_LLA.match(line.strip())
+                if csv:
+                    lat = float(csv.group(1))
+                    lon = float(csv.group(2))
+                    alt = float(csv.group(3))
+                    break
         samples.append(TelemetrySample(t0, t1, lat, lon, alt))
     return samples
 

@@ -14,36 +14,28 @@ def _repo_root() -> Path:
 
 
 def resolve_ffmpeg() -> str:
-    """Return a bundled ffmpeg binary. Never uses a system PATH install as the primary source."""
+    """Return bundled ffmpeg.exe. PATH is last-resort only — never imageio downloads."""
     env = os.environ.get("FFMPEG_PATH")
     if env:
         path = Path(env)
         if path.is_file():
             return str(path)
 
+    resources = os.environ.get("ELECTRON_RESOURCES", "")
     candidates = [
         _repo_root() / "third_party" / "ffmpeg.exe",
         _repo_root() / "third_party" / "ffmpeg" / "bin" / "ffmpeg.exe",
         _repo_root() / "third_party" / "ffmpeg" / "ffmpeg.exe",
-        Path(os.environ.get("ELECTRON_RESOURCES", "")) / "ffmpeg.exe",
+        Path(resources) / "ffmpeg.exe" if resources else None,
     ]
     for candidate in candidates:
-        if candidate.is_file():
+        if candidate and candidate.is_file():
             return str(candidate)
-
-    try:
-        import imageio_ffmpeg
-
-        bundled = imageio_ffmpeg.get_ffmpeg_exe()
-        if bundled and Path(bundled).is_file():
-            return bundled
-    except Exception:
-        pass
 
     fallback = shutil.which("ffmpeg")
     if fallback:
         return fallback
 
     raise FileNotFoundError(
-        "ffmpeg binary not found. Set FFMPEG_PATH or place ffmpeg.exe in third_party/."
+        "ffmpeg binary not found. Place ffmpeg.exe in third_party/ or set FFMPEG_PATH."
     )

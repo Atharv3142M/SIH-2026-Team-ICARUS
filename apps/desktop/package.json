@@ -13,10 +13,16 @@
     "dist": "npm run build && electron-builder --win nsis"
   },
   "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.2",
     "three": "^0.169.0"
   },
   "devDependencies": {
+    "@types/react": "^18.3.11",
+    "@types/react-dom": "^18.3.0",
     "@types/three": "^0.169.0",
+    "@vitejs/plugin-react": "^4.3.2",
     "concurrently": "^9.0.1",
     "electron": "^32.1.2",
     "electron-builder": "^25.1.8",
@@ -27,28 +33,10 @@
   "build": {
     "appId": "org.icarus.digitaltwin",
     "productName": "Digital Twin",
-    "directories": {
-      "output": "release"
-    },
-    "files": [
-      "dist/**/*",
-      "electron/**/*",
-      "package.json"
-    ],
-    "extraResources": [
-      {
-        "from": "../../third_party",
-        "to": ".",
-        "filter": ["ffmpeg.exe"]
-      }
-    ],
-    "win": {
-      "target": ["nsis"],
-      "signAndEditExecutable": false
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true
-    }
+    "directories": { "output": "release" },
+    "files": ["dist/**/*", "electron/**/*", "package.json"],
+    "extraResources": [{ "from": "../../third_party", "to": ".", "filter": ["ffmpeg.exe"] }],
+    "win": { "target": ["nsis"], "signAndEditExecutable": false },
+    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true }
   }
 }
