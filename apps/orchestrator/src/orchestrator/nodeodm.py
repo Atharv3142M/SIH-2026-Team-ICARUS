@@ -1,0 +1,157 @@
+from __future__ import annotations
+
+import json
+import os
+import time
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Callable
+from urllib.parse import urljoin
+from zipfile import ZipFile
+
+import httpx
+
+ProgressCb = Callable[[str, float, str], None]
+
+
+def nodeodm_url() -> str:
+    return os.environ.get("NODEODM_URL", "http://127.0.0.1:3000").rstrip("/")
+
+
+@dataclass
+class TaskInfo:
+    uuid: str
+    status_code: int
+    progress: float
+    message: str
+    raw: dict[str, Any]
+
+    @property
+    def completed(self) -> bool:
+        return self.status_code == 40
+
+    @property
+    def failed(self) -> bool:
+        return self.status_code == 30
+
+    @property
+    def canceled(self) -> bool:
+        return self.status_code == 50
+
+
+class NodeODMError(RuntimeError):
+    pass
+
+
+class NodeODMClient:
+    def __init__(self, base_url: str | None = None, timeout: float = 30.0):
+        self.base_url = (base_url or nodeodm_url()).rstrip("/") + "/"
+        self.timeout = timeout
+
+    def _url(self, path: str) -> str:
+        return urljoin(self.base_url, path.lstrip("/"))
+
+    def info(self) -> dict[str, Any]:
+        with httpx.Client(timeout=self.timeout) as client:
+            r = client.get(self._url("info"))
+            r.raise_for_status()
+            return r.json()
+
+    def create_task(
+        self,
+        images_dir: Path,
+        options: list[dict[str, str]],
+        zip_path: Path,
+    ) -> str:
+        images = sorted(p for p in images_dir.iterdir() if p.suffix.lower() in {".jpg", ".jpeg", ".tif", ".tiff", ".png"})
+        if not images:
+            raise NodeODMError(f"No images in {images_dir}")
+        zip_path.parent.mkdir(parents=True, exist_ok=True)
+        with ZipFile(zip_path, "w") as zf:
+            for image in images:
+                zf.write(image, arcname=image.name)
+        with httpx.Client(timeout=120.0) as client:
+            with zip_path.open("rb") as fh:
+                r = client.post(
+                    self._url("task/new"),
+                    data={"options": json.dumps(options), "skipPostProcessing": "false"},
+                    files={"zip": ("images.zip", fh, "application/zip")},
+                )
+            if r.status_code >= 400:
+                raise NodeODMError(f"NodeODM rejected task: {r.status_code} {r.text}")
+            payload = r.json()
+        uuid = payload.get("uuid")
+        if not uuid:
+            raise NodeODMError(f"NodeODM did not return a uuid: {payload}")
+        return str(uuid)
+
+    def task_info(self, uuid: str) -> TaskInfo:
+        with httpx.Client(timeout=self.timeout) as client:
+            r = client.get(self._url(f"task/{uuid}/info"))
+            r.raise_for_status()
+            data = r.json()
+        status = data.get("status") or {}
+        return TaskInfo(
+            uuid=uuid,
+            status_code=int(status.get("code", 0)),
+            progress=float(data.get("progress") or 0),
+            message=str(status.get("errorMessage") or data.get("processingTime") or ""),
+            raw=data,
+        )
+
+    def wait(
+        self,
+        uuid: str,
+        *,
+        poll_s: float = 1.0,
+        progress: ProgressCb | None = None,
+    ) -> TaskInfo:
+        while True:
+            info = self.task_info(uuid)
+            if progress:
+                pct = 40 + min(50.0, info.progress * 0.5)
+                msg = info.raw.get("status", {}).get("errorMessage") or "Reconstructing"
+                if not isinstance(msg, str) or not msg:
+                    msg = f"NodeODM {info.progress:.0f}%"
+                progress("reconstructing", pct, msg)
+            if info.completed:
+                return info
+            if info.failed or info.canceled:
+                raise NodeODMError(info.message or f"NodeODM task {uuid} failed ({info.status_code})")
+            time.sleep(poll_s)
+
+    def download_asset(self, uuid: str, asset: str, dest: Path) -> Path:
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        with httpx.Client(timeout=None) as client:
+            with client.stream("GET", self._url(f"task/{uuid}/download/{asset}")) as r:
+                r.raise_for_status()
+                with dest.open("wb") as fh:
+                    for chunk in r.iter_bytes():
+                        fh.write(chunk)
+        return dest
+
+
+def cli_main(argv: list[str] | None = None) -> int:
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Submit a folder of stills to NodeODM")
+    parser.add_argument("--images", type=Path, required=True)
+    parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument("--url", default=None)
+    parser.add_argument("--preset", default="medium", choices=["low", "medium", "high"])
+    args = parser.parse_args(argv)
+
+    from orchestrator.presets import preset_options
+
+    client = NodeODMClient(args.url)
+    zip_path = args.out / "upload.zip"
+    uuid = client.create_task(args.images, preset_options(args.preset), zip_path)
+    print(f"task {uuid}", flush=True)
+    client.wait(uuid, progress=lambda s, p, m: print(f"[{s}] {p:.0f}% {m}", flush=True))
+    client.download_asset(uuid, "all.zip", args.out / "all.zip")
+    print(f"downloaded {args.out / 'all.zip'}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(cli_main())

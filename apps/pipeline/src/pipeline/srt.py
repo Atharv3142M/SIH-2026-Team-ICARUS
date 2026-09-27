@@ -1,0 +1,72 @@
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass
+from pathlib import Path
+
+
+@dataclass(frozen=True)
+class TelemetrySample:
+    t_start: float
+    t_end: float
+    latitude: float | None
+    longitude: float | None
+    altitude: float | None
+
+
+_TIME = re.compile(
+    r"(?:(\d+):)?(\d{2}):(\d{2})[,.](\d{1,3})\s*-->\s*(?:(\d+):)?(\d{2}):(\d{2})[,.](\d{1,3})"
+)
+_LAT = re.compile(r"(?:latitude|lat)\s*[:=]\s*(-?\d+(?:\.\d+)?)", re.I)
+_LON = re.compile(r"(?:longitude|lon|lng)\s*[:=]\s*(-?\d+(?:\.\d+)?)", re.I)
+_ALT = re.compile(r"(?:altitude|alt|abs_alt|rel_alt)\s*[:=]\s*(-?\d+(?:\.\d+)?)", re.I)
+_GPS_PAREN = re.compile(
+    r"GPS\s*\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*(?:,\s*(-?\d+(?:\.\d+)?))?\s*\)",
+    re.I,
+)
+
+
+def _to_seconds(h: str | None, m: str, s: str, ms: str) -> float:
+    hours = int(h or 0)
+    millis = int(ms.ljust(3, "0")[:3])
+    return hours * 3600 + int(m) * 60 + int(s) + millis / 1000.0
+
+
+def parse_srt(path: str | Path) -> list[TelemetrySample]:
+    text = Path(path).read_text(encoding="utf-8", errors="replace")
+    blocks = re.split(r"\n\s*\n", text.strip())
+    samples: list[TelemetrySample] = []
+    for block in blocks:
+        match = _TIME.search(block)
+        if not match:
+            continue
+        t0 = _to_seconds(match.group(1), match.group(2), match.group(3), match.group(4))
+        t1 = _to_seconds(match.group(5), match.group(6), match.group(7), match.group(8))
+        lat = lon = alt = None
+        gps = _GPS_PAREN.search(block)
+        if gps:
+            lat = float(gps.group(1))
+            lon = float(gps.group(2))
+            if gps.group(3) is not None:
+                alt = float(gps.group(3))
+        lat_m = _LAT.search(block)
+        lon_m = _LON.search(block)
+        alt_m = _ALT.search(block)
+        if lat_m:
+            lat = float(lat_m.group(1))
+        if lon_m:
+            lon = float(lon_m.group(1))
+        if alt_m:
+            alt = float(alt_m.group(1))
+        samples.append(TelemetrySample(t0, t1, lat, lon, alt))
+    return samples
+
+
+def sample_at(samples: list[TelemetrySample], t: float) -> TelemetrySample | None:
+    if not samples:
+        return None
+    for sample in samples:
+        if sample.t_start <= t <= sample.t_end:
+            return sample
+    best = min(samples, key=lambda s: min(abs(t - s.t_start), abs(t - s.t_end)))
+    return best

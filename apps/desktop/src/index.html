@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Digital Twin</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="viewport"></canvas>
+      <header class="hud-top">
+        <div class="mark">DT-01</div>
+        <div id="statusLine">Idle</div>
+        <div id="coords">—</div>
+      </header>
+      <aside class="hud-left" id="panel">
+        <h1>Input</h1>
+        <p class="hint">Local video only. Nothing is uploaded.</p>
+        <button type="button" id="pickVideo">Select video</button>
+        <div class="path" id="videoName">No video</div>
+        <button type="button" class="ghost" id="pickSrt">Optional SRT telemetry</button>
+        <div class="path" id="srtName">None</div>
+        <label class="row">
+          Preset
+          <select id="preset">
+            <option value="">Auto</option>
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+          </select>
+        </label>
+        <label class="row">
+          <input type="checkbox" id="masks" />
+          Mask moving objects
+        </label>
+        <button type="button" class="primary" id="process" disabled>Process</button>
+        <div class="progress-wrap" hidden id="progressWrap">
+          <div class="bar"><i id="barFill"></i></div>
+          <div id="progressLabel">Waiting</div>
+        </div>
+        <hr />
+        <h2>Inspect</h2>
+        <button type="button" class="ghost" id="openGlb">Open GLB</button>
+        <label class="row"><input type="checkbox" id="layerMesh" checked /> Mesh</label>
+        <label class="row"><input type="checkbox" id="layerCloud" disabled /> Point cloud</label>
+        <label class="row"><input type="checkbox" id="layerOrtho" disabled /> Orthophoto</label>
+        <button type="button" id="measure">Measure distance</button>
+        <div id="measureOut">Click two points on the mesh.</div>
+      </aside>
+    </div>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.coverage
+htmlcov/
+
+# Node / Electron
+node_modules/
+apps/desktop/dist/
+apps/desktop/release/
+apps/desktop/out/
+
+# Runtime / jobs
+.jobs/
+*.glb
+*.laz
+*.tif
+
+# Bundled binaries (too large for git)
+third_party/*.exe
+third_party/*.tar
+third_party/*.tar.gz
+third_party/ffmpeg/
+third_party/nodeodm/
+
+# Local env
+.env
+.env.local
+*.log
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+/.cursor
