@@ -26,7 +26,8 @@ export default function Dashboard() {
       <Header />
       <main className="page">
         <div className="container">
-          <h1>Dashboard</h1>
+          <h1>posEye</h1>
+          <p className="muted" style={{ marginTop: -12, marginBottom: 20 }}>Single-pass drone video to 3D model · local processing</p>
           <div className="grid-3">
             <Card>
               <h2>Quick stats</h2>
@@ -53,6 +54,13 @@ export default function Dashboard() {
               <Meter label="CPU" pct={sys?.cpuPercent ?? 0} text={`${Math.round(sys?.cpuPercent ?? 0)}%`} />
               <Meter label="RAM" pct={sys?.ramPercent ?? 0} text={`${sys?.ramUsedGb ?? "—"} / ${sys?.ramTotalGb ?? "—"} GB`} />
               <Meter label="Disk" pct={sys ? (sys.diskUsedGb / sys.diskTotalGb) * 100 : 0} text={`${sys?.diskUsedGb ?? "—"} GB used`} />
+              <p className="muted">
+                GPU:{" "}
+                {sys?.gpuAvailable
+                  ? `${sys.gpuName ?? "NVIDIA"} · ${Math.round(sys.gpuUtilization ?? 0)}% · ${sys.gpuMemoryUsed}/${sys.gpuMemoryTotal} MiB`
+                  : "Unavailable"}
+              </p>
+              <p className="muted">FFmpeg: {sys?.ffmpeg?.detected ? sys.ffmpeg.version ?? "detected" : "Not found"}</p>
               <p className="muted">Docker: {sys?.docker.ok ? `Running ${sys.docker.version}` : "Not detected"}</p>
               <p className="muted">NodeODM: {sys?.nodeodm.ok ? "Connected" : "Offline"}</p>
             </Card>

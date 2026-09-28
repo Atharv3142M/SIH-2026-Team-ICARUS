@@ -6,12 +6,26 @@ export type Job = {
   percent: number;
   message: string;
   error: string | null;
+  errorCode?: string | null;
   geotagged: number;
   frameCount: number;
   preset: string;
   hasModel: boolean;
   createdAt: string;
+  updatedAt?: string;
   videoPath: string;
+  extract?: {
+    rawFrames?: number;
+    retainedFrames?: number;
+    droppedBlur?: number;
+    droppedDuplicates?: number;
+    geotaggedFrames?: number;
+    masksGenerated?: number;
+    duration?: number | null;
+    fps?: number | null;
+    resolution?: string | null;
+  };
+  assets?: { glb?: boolean; laz?: boolean; orthophoto?: boolean };
 };
 
 export type SystemStatus = {
@@ -20,9 +34,16 @@ export type SystemStatus = {
   ramTotalGb: number;
   ramPercent: number;
   diskUsedGb: number;
+  diskFreeGb?: number;
   diskTotalGb: number;
   docker: { ok: boolean; version: string };
   nodeodm: { ok: boolean; url: string };
+  ffmpeg?: { detected: boolean; path: string | null; version: string | null };
+  gpuAvailable?: boolean;
+  gpuName?: string;
+  gpuUtilization?: number;
+  gpuMemoryUsed?: number;
+  gpuMemoryTotal?: number;
 };
 
 declare global {

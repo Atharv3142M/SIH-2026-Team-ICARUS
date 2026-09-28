@@ -1,5 +1,6 @@
 const MAP: Record<string, { className: string; label: string }> = {
   ready: { className: "badge-success", label: "Completed" },
+  cancelled: { className: "badge-warning", label: "Cancelled" },
   error: { className: "badge-error", label: "Failed" },
   extracting: { className: "badge-processing", label: "Processing" },
   reconstructing: { className: "badge-processing", label: "Processing" },

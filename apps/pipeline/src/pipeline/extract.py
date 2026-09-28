@@ -6,16 +6,14 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
+from pipeline.errors import ExtractError, FfmpegUnavailable, NotEnoughFrames
 from pipeline.exif import write_gps_exif
 from pipeline.ffmpeg import resolve_ffmpeg
-from pipeline.filters import FrameScore, select_frames, score_frames
+from pipeline.filters import select_frames, score_frames
+from pipeline.probe import probe_video
 from pipeline.srt import parse_srt, sample_at
 
 ProgressCb = Callable[[str, float, str], None]
-
-
-class ExtractError(RuntimeError):
-    pass
 
 
 @dataclass
@@ -39,6 +37,23 @@ class ExtractResult:
     dropped_dup: int
     raw_count: int
     mask_paths: list[Path] = field(default_factory=list)
+    duration_s: float | None = None
+    source_fps: float | None = None
+    width: int | None = None
+    height: int | None = None
+
+    def as_dict(self) -> dict:
+        return {
+            "rawFrames": self.raw_count,
+            "retainedFrames": len(self.frames),
+            "droppedBlur": self.dropped_blur,
+            "droppedDuplicates": self.dropped_dup,
+            "geotaggedFrames": self.geotagged,
+            "masksGenerated": len(self.mask_paths),
+            "duration": self.duration_s,
+            "fps": self.source_fps,
+            "resolution": f"{self.width}x{self.height}" if self.width and self.height else None,
+        }
 
 
 def _emit(cb: ProgressCb | None, stage: str, pct: float, message: str) -> None:
@@ -80,7 +95,12 @@ def extract_frames(config: ExtractConfig, progress: ProgressCb | None = None) ->
     raw_dir.mkdir(parents=True)
     keep_dir.mkdir(parents=True)
 
-    ffmpeg = resolve_ffmpeg()
+    try:
+        ffmpeg = resolve_ffmpeg()
+    except FileNotFoundError as exc:
+        raise FfmpegUnavailable(str(exc)) from exc
+    info = probe_video(video)
+    _emit(progress, "validating", 3, "Validating video")
     _emit(progress, "extracting", 5, "Extracting frames")
     _run_ffmpeg(ffmpeg, video, raw_dir / "frame_%06d.jpg", config.fps, config.jpeg_quality)
 
@@ -88,7 +108,7 @@ def extract_frames(config: ExtractConfig, progress: ProgressCb | None = None) ->
     if not raw_paths:
         raise ExtractError("No frames were extracted from the video")
 
-    _emit(progress, "extracting", 35, f"Scoring {len(raw_paths)} frames")
+    _emit(progress, "filtering", 40, f"Scoring {len(raw_paths)} frames")
     scores = score_frames(raw_paths)
     kept = select_frames(
         scores,
@@ -99,11 +119,12 @@ def extract_frames(config: ExtractConfig, progress: ProgressCb | None = None) ->
     dropped_dup = max(0, len(scores) - dropped_blur - len(kept))
 
     if len(kept) < config.min_retained_frames:
-        raise ExtractError(
+        raise NotEnoughFrames(
             f"Only {len(kept)} sharp, unique frames remain (need at least "
             f"{config.min_retained_frames}). Lower the blur threshold or use a longer clip."
         )
 
+    _emit(progress, "geotagging", 55, "Matching telemetry")
     samples = parse_srt(config.srt_path) if config.srt_path else []
     geotagged = 0
     written: list[Path] = []
@@ -124,11 +145,12 @@ def extract_frames(config: ExtractConfig, progress: ProgressCb | None = None) ->
     if config.generate_masks:
         from pipeline.masks import generate_moving_object_masks
 
-        _emit(progress, "extracting", 80, "Masking moving objects")
+        _emit(progress, "masking", 80, "Masking moving objects")
         mask_paths = generate_moving_object_masks(written)
 
     shutil.rmtree(raw_dir, ignore_errors=True)
-    _emit(progress, "extracting", 100, f"Kept {len(written)} frames")
+    last = "masking" if mask_paths else "geotagging"
+    _emit(progress, last, 100, f"Kept {len(written)} frames")
     return ExtractResult(
         frames=written,
         geotagged=geotagged,
@@ -136,4 +158,8 @@ def extract_frames(config: ExtractConfig, progress: ProgressCb | None = None) ->
         dropped_dup=dropped_dup,
         raw_count=len(scores),
         mask_paths=mask_paths,
+        duration_s=info.duration_s,
+        source_fps=info.fps,
+        width=info.width,
+        height=info.height,
     )

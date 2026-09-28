@@ -70,31 +70,58 @@ async function dockerAvailable() {
   }
 }
 
+async function waitForUrl(url, ms = 60000, label = "service") {
+  const start = Date.now();
+  while (Date.now() - start < ms) {
+    try {
+      const res = await fetch(url);
+      if (res.ok) return;
+    } catch {
+      /* retry */
+    }
+    await new Promise((r) => setTimeout(r, 400));
+  }
+  throw new Error(`${label} did not become ready (${url}).`);
+}
+
 async function ensureNodeOdm() {
   if (!(await dockerAvailable())) {
     throw new Error(
-      "Docker is not running. Install Docker Desktop (the app installer can provision it) and start it, then relaunch.",
+      "Docker is not running. Start Docker Desktop, then relaunch posEye. If Docker is not installed, run the posEye installer.",
     );
   }
-  try {
-    await run("docker", ["start", "digitaltwin-nodeodm"]);
-    return;
-  } catch {
-    /* create */
+  const names = ["poseye-nodeodm", "digitaltwin-nodeodm"];
+  for (const name of names) {
+    try {
+      await run("docker", ["start", name]);
+      await waitForUrl(`${NODEODM_URL}/info`, 90000, "NodeODM");
+      return;
+    } catch {
+      /* try next */
+    }
   }
   const tar = path.join(repoRoot(), "third_party", "nodeodm.tar");
   if (fs.existsSync(tar)) {
     await run("docker", ["load", "-i", tar]);
   }
-  await run("docker", [
-    "run",
-    "-d",
-    "--name",
-    "digitaltwin-nodeodm",
-    "-p",
-    "3000:3000",
-    "opendronemap/nodeodm",
-  ]);
+  try {
+    await run("docker", [
+      "run",
+      "-d",
+      "--name",
+      "poseye-nodeodm",
+      "-p",
+      "3000:3000",
+      "opendronemap/nodeodm",
+    ]);
+  } catch (err) {
+    const msg = String(err.message || err);
+    if (/port is already allocated|bind/i.test(msg)) {
+      throw new Error("Port 3000 is already in use. Stop the other process or set NODEODM_URL to that instance.");
+    }
+    throw new Error("Could not start NodeODM. Confirm Docker is running and the NodeODM image is available.");
+  }
+  await waitForUrl(`${NODEODM_URL}/info`, 120000, "NodeODM");
 }
 
 function startApi() {
@@ -122,17 +149,7 @@ function startApi() {
 }
 
 async function waitForApi(ms = 20000) {
-  const start = Date.now();
-  while (Date.now() - start < ms) {
-    try {
-      const res = await fetch(`${API_BASE}/health`);
-      if (res.ok) return;
-    } catch {
-      /* retry */
-    }
-    await new Promise((r) => setTimeout(r, 300));
-  }
-  throw new Error("Orchestrator did not start on " + API_BASE);
+  await waitForUrl(`${API_BASE}/health`, ms, "posEye orchestrator");
 }
 
 function createWindow() {
@@ -192,23 +209,23 @@ app.whenReady().then(async () => {
     if (!(await virtualizationEnabled())) {
       await dialog.showMessageBox({
         type: "warning",
-        title: "Hardware virtualization disabled",
+        title: "Virtualization disabled",
         message:
-          "Docker needs virtualization enabled in BIOS/UEFI (Intel VT-x / AMD-V). Enable it, reboot, then relaunch. The installer cannot change this setting.",
+          "posEye uses Docker/WSL2, which needs Intel VT-x or AMD-V enabled in BIOS/UEFI. Enable it, reboot, then relaunch. The installer cannot change this firmware setting.",
       });
     }
     await ensureNodeOdm();
     startApi();
     await waitForApi();
   } catch (err) {
-    await dialog.showErrorBox("Startup", String(err.message || err));
+    await dialog.showErrorBox("posEye startup", String(err.message || err));
   }
   createWindow();
 });
 
 app.on("before-quit", () => {
   if (apiProc && !apiProc.killed) apiProc.kill();
-  spawn("docker", ["stop", "digitaltwin-nodeodm"], { windowsHide: true });
+  spawn("docker", ["stop", "poseye-nodeodm", "digitaltwin-nodeodm"], { windowsHide: true });
 });
 
 app.on("window-all-closed", () => {

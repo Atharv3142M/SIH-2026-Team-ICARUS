@@ -13,7 +13,7 @@ export default function Header() {
   const { theme, toggle } = useTheme();
   return (
     <header className="header">
-      <div className="brand">JARVIS Digital Twin</div>
+      <div className="brand">posEye</div>
       <nav>
         {LINKS.map((l) => (
           <NavLink key={l.to} to={l.to} className={({ isActive }) => (isActive ? "active" : "")}>

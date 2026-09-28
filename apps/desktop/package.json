@@ -2,7 +2,7 @@
   "name": "digitaltwin-desktop",
   "version": "0.1.0",
   "private": true,
-  "description": "Digital Twin desktop shell",
+  "description": "posEye desktop shell",
   "main": "electron/main.cjs",
   "scripts": {
     "dev": "vite",
@@ -32,7 +32,7 @@
   },
   "build": {
     "appId": "org.icarus.digitaltwin",
-    "productName": "Digital Twin",
+    "productName": "posEye",
     "directories": { "output": "release" },
     "files": ["dist/**/*", "electron/**/*", "package.json"],
     "extraResources": [{ "from": "../../third_party", "to": ".", "filter": ["ffmpeg.exe"] }],

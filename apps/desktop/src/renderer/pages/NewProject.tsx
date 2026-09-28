@@ -18,16 +18,30 @@ export default function NewProject() {
   const [description, setDescription] = useState("");
   const [videoPath, setVideoPath] = useState("");
   const [srtPath, setSrtPath] = useState("");
-  const [preset, setPreset] = useState("balanced");
+  const [preset, setPreset] = useState(localStorage.getItem("dt-preset") || "balanced");
   const [masks, setMasks] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [probe, setProbe] = useState<{ durationS?: number; width?: number; height?: number; fps?: number; sizeBytes?: number; name?: string } | null>(null);
+
+  async function applyVideo(p: string) {
+    setVideoPath(p);
+    try {
+      setProbe(await fetchJson("/probe/video", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ videoPath: p }),
+      }));
+    } catch {
+      setProbe(null);
+    }
+  }
+
   async function pickVideo() {
     if (window.dt) {
       const p = await window.dt.pickVideo();
-      if (p) setVideoPath(p);
-      return;
+      if (p) await applyVideo(p);
     }
   }
 
@@ -52,6 +66,8 @@ export default function NewProject() {
           srtPath: srtPath || null,
           preset,
           generateMasks: masks,
+          fps: Number(localStorage.getItem("dt-fps") || "3"),
+          blurThreshold: Number(localStorage.getItem("dt-blur") || "40"),
         }),
       });
       nav(`/processing/${job.id}`);
@@ -82,9 +98,16 @@ export default function NewProject() {
             <h2>Input files</h2>
             <label className="field">Video file (required)
               <div className="row">
-                <input style={{ flex: 1 }} value={videoPath} onChange={(e) => setVideoPath(e.target.value)} placeholder="C:\\path\\flight.mp4" />
+                <input style={{ flex: 1 }} value={videoPath} onChange={(e) => setVideoPath(e.target.value)} onBlur={() => videoPath && void applyVideo(videoPath)} placeholder="C:\\path\\flight.mp4" />
                 <Button onClick={() => void pickVideo()}>Browse</Button>
               </div>
+              {probe && (
+                <p className="muted">
+                  {probe.name} · {probe.width}×{probe.height} · {probe.fps?.toFixed(1)} fps ·{" "}
+                  {probe.durationS != null ? `${probe.durationS.toFixed(1)}s` : ""} ·{" "}
+                  {probe.sizeBytes != null ? `${(probe.sizeBytes / 1e6).toFixed(1)} MB` : ""}
+                </p>
+              )}
             </label>
             <label className="field">Telemetry SRT (optional)
               <div className="row">

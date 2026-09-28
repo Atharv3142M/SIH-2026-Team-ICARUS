@@ -58,11 +58,13 @@ export default function ProjectsList() {
               <div className="row">
                 <Button variant="primary" onClick={() => nav(j.stage === "ready" ? `/viewer/${j.id}` : `/processing/${j.id}`)}>View</Button>
                 {j.hasModel && (
-                  <>
-                    <Button onClick={() => void download(j.id, "model.glb")}>Export GLB</Button>
-                    <Button onClick={() => void download(j.id, "model.laz")}>LAZ</Button>
-                    <Button onClick={() => void download(j.id, "orthophoto.tif")}>GeoTIFF</Button>
-                  </>
+                  <Button onClick={() => void download(j.id, "model.glb")}>Export GLB</Button>
+                )}
+                {j.assets?.laz && (
+                  <Button onClick={() => void download(j.id, "model.laz")}>Export LAZ</Button>
+                )}
+                {j.assets?.orthophoto && (
+                  <Button onClick={() => void download(j.id, "orthophoto.tif")}>Export GeoTIFF</Button>
                 )}
                 {j.stage === "error" && <Button onClick={() => nav("/projects/new")}>Retry</Button>}
                 <Button variant="danger" onClick={() => void remove(j.id)}>Delete</Button>

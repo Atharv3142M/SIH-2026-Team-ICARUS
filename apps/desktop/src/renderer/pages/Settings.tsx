@@ -9,7 +9,7 @@ export default function Settings() {
   const { theme, setTheme } = useTheme();
   const [font, setFont] = useState(localStorage.getItem("dt-font") || "normal");
   const [preset, setPreset] = useState(localStorage.getItem("dt-preset") || "balanced");
-  const [fps, setFps] = useState(localStorage.getItem("dt-fps") || "2.0");
+  const [fps, setFps] = useState(localStorage.getItem("dt-fps") || "3");
   const [blur, setBlur] = useState(localStorage.getItem("dt-blur") || "40");
   const [sys, setSys] = useState<SystemStatus | null>(null);
 
@@ -53,24 +53,26 @@ export default function Settings() {
                 <input type="radio" checked={preset === p} onChange={() => setPreset(p)} /> {p}
               </label>
             ))}
-            <label className="field">Frame extraction FPS
+            <label className="field">Frame extraction FPS (sent with new jobs)
               <input type="number" step="0.5" min="0.5" max="5" value={fps} onChange={(e) => setFps(e.target.value)} />
             </label>
-            <label className="field">Blur threshold
+            <label className="field">Blur threshold (sent with new jobs)
               <input type="number" value={blur} onChange={(e) => setBlur(e.target.value)} />
             </label>
           </Card>
           <div style={{ height: 12 }} />
           <Card>
             <h2>System</h2>
+            <p className="muted">FFmpeg: {sys?.ffmpeg?.detected ? sys.ffmpeg.version ?? sys.ffmpeg.path : "Not found"}</p>
             <p className="muted">Docker: {sys?.docker.ok ? `Running (${sys.docker.version || "ok"})` : "Not running"}</p>
             <p className="muted">NodeODM: {sys?.nodeodm.ok ? sys.nodeodm.url : "Disconnected"}</p>
+            <p className="muted">GPU: {sys?.gpuAvailable ? sys.gpuName : "Unavailable"}</p>
             <p className="muted">Disk: {sys ? `${sys.diskUsedGb} / ${sys.diskTotalGb} GB` : "—"}</p>
           </Card>
           <div style={{ height: 12 }} />
           <Card>
             <h2>About</h2>
-            <p className="muted">JARVIS Digital Twin 0.1.0 · SIH26158 · Team ICARUS</p>
+            <p className="muted">posEye 0.1.0 · SIH26158 · Team ICARUS</p>
             <p className="muted">Local processing only. Imagery never leaves this machine.</p>
             <Button onClick={() => window.open("https://github.com/OpenDroneMap/ODM")}>OpenDroneMap docs</Button>
           </Card>

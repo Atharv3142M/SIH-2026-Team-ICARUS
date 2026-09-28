@@ -11,7 +11,7 @@ export default function Viewer() {
   const { id } = useParams();
   const nav = useNavigate();
   const { job } = useProject(id);
-  const [tool, setTool] = useState<"orbit" | "distance" | "volume" | "polygon" | "screenshot">("orbit");
+  const [tool, setTool] = useState<"orbit" | "distance" | "screenshot">("orbit");
   const [layers, setLayers] = useState({ mesh: true, ortho: false, cloud: false, dem: false });
   const [coords, setCoords] = useState("—");
   const [measure, setMeasure] = useState<MeasureResult>(null);
@@ -43,9 +43,13 @@ export default function Viewer() {
             <Button onClick={() => nav("/projects")}>Projects</Button>
             {id && job?.hasModel && (
               <>
-                <a className="btn btn-secondary" href={`${apiBaseSync()}/jobs/${id}/assets/model.glb`}>Download GLB</a>
-                <a className="btn btn-secondary" href={`${apiBaseSync()}/jobs/${id}/assets/model.laz`}>LAZ</a>
-                <a className="btn btn-secondary" href={`${apiBaseSync()}/jobs/${id}/assets/orthophoto.tif`}>GeoTIFF</a>
+                <a className="btn btn-secondary" href={`${apiBaseSync()}/jobs/${id}/assets/model.glb`}>Export GLB</a>
+                {job.assets?.laz && (
+                  <a className="btn btn-secondary" href={`${apiBaseSync()}/jobs/${id}/assets/model.laz`}>Export LAZ</a>
+                )}
+                {job.assets?.orthophoto && (
+                  <a className="btn btn-secondary" href={`${apiBaseSync()}/jobs/${id}/assets/orthophoto.tif`}>Export GeoTIFF</a>
+                )}
               </>
             )}
             <Button onClick={screenshot}>Print / screenshot</Button>
@@ -62,7 +66,8 @@ export default function Viewer() {
               layers={layers}
               onLayer={(k, v) => setLayers((prev) => ({ ...prev, [k]: v }))}
               coords={coords}
-              info={{ georef: job && job.geotagged > 0 ? "GPS EXIF present (~2–5 m)" : "Relative / no GPS" }}
+              info={{ georef: job && job.geotagged > 0 ? "GPS EXIF present (~2–5 m typical)" : "Relative / unreferenced model" }}
+              assets={job?.assets}
             />
           </div>
           <div style={{ position: "relative", background: "var(--bg-tertiary)" }}>
@@ -76,8 +81,8 @@ export default function Viewer() {
           </div>
         </div>
         <div style={{ padding: "8px 16px", borderTop: "1px solid var(--border-light)" }} className="muted">
-          {measure
-            ? `Distance: ${measure.distance.toFixed(2)} m (model units) · ΔY ${(measure.b.y - measure.a.y).toFixed(2)}`
+            {measure
+            ? `Distance: ${measure.distance.toFixed(2)} (model units; meters only if the reconstruction is georeferenced)`
             : "Select Distance, then click two points on the mesh."}
         </div>
       </main>
